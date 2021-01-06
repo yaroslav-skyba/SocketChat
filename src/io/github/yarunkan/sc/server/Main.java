@@ -8,8 +8,10 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Main {
     private final List<Socket> clientSocketList = new ArrayList<>();
@@ -20,6 +22,7 @@ public class Main {
     }
 
     public void start(String[] args) {
+        System.out.println("Usage: java SocketChat <port-number>\n");
 
         if (!validateArgs(args)) {
             System.exit(0);
@@ -28,6 +31,8 @@ public class Main {
         final int port = Integer.parseInt(args[0]);
 
         try (ServerSocket serverSocket = new ServerSocket(port)) {
+            System.out.println("The server is listening on the port: " + port + "\n");
+
             final Thread connectClientsThread = connectClients(serverSocket);
             connectClientsThread.start();
 
@@ -43,14 +48,17 @@ public class Main {
 
     private boolean validateArgs(String[] args) {
         if (args.length != 1) {
-            System.out.println("Usage: java Main <port-number>");
+            System.out.println("Usage: java SocketChat <port-number>");
             return false;
         }
 
         for (int i = 0; i < args[0].length(); i++) {
             final char portChar = args[0].charAt(i);
 
-            if (portChar < '0' || portChar > '9') {
+            if (portChar < '0') {
+                System.out.println("<port-number> must contain only digits");
+                return false;
+            } else if (portChar > '9') {
                 System.out.println("<port-number> must contain only digits");
                 return false;
             }
@@ -63,13 +71,19 @@ public class Main {
         return new Thread(() -> {
             while (true) {
                 try {
-                    clientSocketList.add(serverSocket.accept());
-                    isClientConnected = true;
+                    final Socket clientSocket = serverSocket.accept();
+                    clientSocketList.add(clientSocket);
+
+                    resumeBroadcast();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
         });
+    }
+
+    private void resumeBroadcast() {
+        isClientConnected = true;
     }
 
     private Thread broadcastMessage() {
@@ -78,35 +92,45 @@ public class Main {
                 suspendBroadcast();
             }
 
-            int clientSocketSetSize = clientSocketList.size();
+            final AtomicInteger clientSocketListSize = new AtomicInteger(clientSocketList.size());
+            final Collection<String> messageCollection = new ArrayList<>();
 
-            for (Iterator<Socket> clientSocketIterator = clientSocketList.listIterator(); clientSocketIterator.hasNext(); ) {
+            Iterator<Socket> clientSocketIterator = clientSocketList.listIterator();
+
+            while (true) {
                 final Socket clientSocket = clientSocketIterator.next();
 
-                new Thread(() -> {
+                final Thread clientThread = new Thread(() -> {
                     try (BufferedReader clientReader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
+                        for (String message : messageCollection) {
+                            writeClient(clientSocket, message);
+                        }
+
                         while (true) {
                             final String message = clientReader.readLine();
+                            messageCollection.add(message);
 
-                            final List<Socket> clientReceiverSet = new ArrayList<>(clientSocketList);
-                            clientReceiverSet.remove(clientSocket);
+                            System.out.println(message);
 
-                            for (Socket clientReceiver : clientReceiverSet) {
-                                final BufferedWriter clientWriter;
-                                clientWriter = new BufferedWriter(new OutputStreamWriter(clientReceiver.getOutputStream()));
-                                clientWriter.write(message + "\n");
-                                clientWriter.flush();
+                            final Collection<Socket> clientReceiverList = new ArrayList<>(clientSocketList);
+                            clientReceiverList.remove(clientSocket);
+
+                            for (Socket clientReceiver : clientReceiverList) {
+                                writeClient(clientReceiver, message);
                             }
                         }
                     } catch (IOException e) {
-                        e.printStackTrace();
+                        clientSocketList.removeIf(Socket::isClosed);
+                        clientSocketListSize.getAndDecrement();
                     }
-                }).start();
+                });
+
+                clientThread.start();
 
                 if (!clientSocketIterator.hasNext()) {
                     suspendBroadcast();
-                    clientSocketIterator = clientSocketList.listIterator(clientSocketSetSize - 1);
-                    clientSocketSetSize = clientSocketList.size();
+                    clientSocketIterator = clientSocketList.listIterator(clientSocketListSize.get());
+                    clientSocketListSize.set(clientSocketList.size());
                 }
             }
         });
@@ -118,5 +142,11 @@ public class Main {
         while (!isClientConnected) {
             Thread.onSpinWait();
         }
+    }
+
+    private void writeClient(Socket clientSocket, String message) throws IOException {
+        final BufferedWriter clientWriter = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
+        clientWriter.write(message + "\n");
+        clientWriter.flush();
     }
 }

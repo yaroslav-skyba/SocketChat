@@ -17,7 +17,7 @@ public class Main {
 
     private boolean validateArgs(String[] args) {
         if (args.length != 3) {
-            System.out.println("Usage: java Main <host-name> <port-number> <user-name>");
+            System.out.println("Usage: java SocketChat <host-name> <port-number> <user-name>");
             return false;
         }
 
@@ -34,6 +34,8 @@ public class Main {
     }
 
     public void start(String[] args) {
+        System.out.println("Usage: java SocketChat <host-name> <port-number> <user-name>\n");
+
         if (!validateArgs(args)) {
             System.exit(0);
         }
@@ -45,6 +47,8 @@ public class Main {
              BufferedWriter currentClientWriter = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
              BufferedReader otherClientReader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
              BufferedReader currentClientReader = new BufferedReader(new InputStreamReader(System.in))) {
+
+            System.out.println("WELCOME TO THE SOCKET CHAT\n");
 
             final Thread currentClientThread = writeMessage(currentClientWriter, currentClientReader);
             final Thread otherClientThread = readMessage(otherClientReader);
