@@ -103,12 +103,16 @@ public class Main {
                         System.out.print("\b");
                     }
 
-                    System.out.println(message);
-                    System.out.print(currentClientIdentifier);
+                    printMessage(message, currentClientIdentifier);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
         });
+    }
+
+    private void printMessage(String message, String currentClientIdentifier) {
+        System.out.println(message);
+        System.out.print(currentClientIdentifier);
     }
 }
