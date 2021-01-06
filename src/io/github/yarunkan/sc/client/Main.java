@@ -8,29 +8,11 @@ import java.io.OutputStreamWriter;
 import java.net.Socket;
 
 public class Main {
-    private final String clientNameSeparator = ": ";
+    private final static String CLIENT_NAME_SEPARATOR = ": ";
     private String currentClientName;
 
     public static void main(String[] args) {
         new Main().start(args);
-    }
-
-    private boolean validateArgs(String[] args) {
-        if (args.length != 3) {
-            System.out.println("Usage: java SocketChat <host-name> <port-number> <user-name>");
-            return false;
-        }
-
-        for (int i = 0; i < args[1].length(); i++) {
-            final char portChar = args[1].charAt(i);
-
-            if (portChar < '0' || portChar > '9') {
-                System.out.println("<port-number> must contain only digits");
-                return false;
-            }
-        }
-
-        return true;
     }
 
     public void start(String[] args) {
@@ -41,6 +23,12 @@ public class Main {
         }
 
         final int port = Integer.parseInt(args[1]);
+
+        if (port < 0 || port > 65535) {
+            System.out.println("A port number should not be less than 0 or more than 65535");
+            System.exit(0);
+        }
+
         currentClientName = args[2];
 
         try (Socket clientSocket = new Socket(args[0], port);
@@ -63,11 +51,29 @@ public class Main {
         }
     }
 
+    private boolean validateArgs(String[] args) {
+        if (args.length != 3) {
+            System.out.println("Usage: java SocketChat <host-name> <port-number> <user-name>");
+            return false;
+        }
+
+        for (int i = 0; i < args[1].length(); i++) {
+            final char portChar = args[1].charAt(i);
+
+            if (portChar < '0' || portChar > '9') {
+                System.out.println("<port-number> must contain only digits");
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private Thread writeMessage(BufferedWriter currentClientWriter, BufferedReader currentClientReader) {
         return new Thread(() -> {
             try {
                 while (true) {
-                    final String currentClientIdentifier = currentClientName + clientNameSeparator;
+                    final String currentClientIdentifier = currentClientName + CLIENT_NAME_SEPARATOR;
 
                     System.out.print(currentClientIdentifier);
 
@@ -91,7 +97,7 @@ public class Main {
             try {
                 while (true) {
                     final String message = otherClientReader.readLine();
-                    final String currentClientIdentifier = currentClientName + clientNameSeparator;
+                    final String currentClientIdentifier = currentClientName + CLIENT_NAME_SEPARATOR;
 
                     for (int i = 0; i < currentClientIdentifier.length(); i++) {
                         System.out.print("\b");

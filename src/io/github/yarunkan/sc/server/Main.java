@@ -30,6 +30,11 @@ public class Main {
 
         final int port = Integer.parseInt(args[0]);
 
+        if (port < 0 || port > 65535) {
+            System.out.println("A port number should not be less than 0 or more than 65535");
+            System.exit(0);
+        }
+
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("The server is listening on the port: " + port + "\n");
 
@@ -55,10 +60,7 @@ public class Main {
         for (int i = 0; i < args[0].length(); i++) {
             final char portChar = args[0].charAt(i);
 
-            if (portChar < '0') {
-                System.out.println("<port-number> must contain only digits");
-                return false;
-            } else if (portChar > '9') {
+            if (portChar < '0' || portChar > '9') {
                 System.out.println("<port-number> must contain only digits");
                 return false;
             }
@@ -73,11 +75,11 @@ public class Main {
                 try {
                     final Socket clientSocket = serverSocket.accept();
                     clientSocketList.add(clientSocket);
-
-                    resumeBroadcast();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+
+                resumeBroadcast();
             }
         });
     }
@@ -103,7 +105,7 @@ public class Main {
                 final Thread clientThread = new Thread(() -> {
                     try (BufferedReader clientReader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
                         for (String message : messageCollection) {
-                            writeClient(clientSocket, message);
+                            writeToClient(clientSocket, message);
                         }
 
                         while (true) {
@@ -116,12 +118,11 @@ public class Main {
                             clientReceiverList.remove(clientSocket);
 
                             for (Socket clientReceiver : clientReceiverList) {
-                                writeClient(clientReceiver, message);
+                                writeToClient(clientReceiver, message);
                             }
                         }
                     } catch (IOException e) {
-                        clientSocketList.removeIf(Socket::isClosed);
-                        clientSocketListSize.getAndDecrement();
+                        disconnectClients(clientSocketListSize);
                     }
                 });
 
@@ -144,9 +145,14 @@ public class Main {
         }
     }
 
-    private void writeClient(Socket clientSocket, String message) throws IOException {
+    private void writeToClient(Socket clientSocket, String message) throws IOException {
         final BufferedWriter clientWriter = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
         clientWriter.write(message + "\n");
         clientWriter.flush();
+    }
+
+    private void disconnectClients(AtomicInteger clientSocketListSize) {
+        clientSocketList.removeIf(Socket::isClosed);
+        clientSocketListSize.getAndDecrement();
     }
 }
