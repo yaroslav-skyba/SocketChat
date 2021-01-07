@@ -74,12 +74,13 @@ public class Main {
             try {
                 while (true) {
                     final String currentClientIdentifier = currentClientName + CLIENT_NAME_SEPARATOR;
+                    clearCurrentClientIdentifier(currentClientIdentifier);
 
                     System.out.print(currentClientIdentifier);
 
                     final String message = currentClientReader.readLine();
 
-                    if (message.equals("")) {
+                    if (message.trim().equals("")) {
                         continue;
                     }
 
@@ -87,9 +88,15 @@ public class Main {
                     currentClientWriter.flush();
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                System.out.println("\n\nThe server is closed");
             }
         });
+    }
+
+    private void clearCurrentClientIdentifier(String currentClientIdentifier) {
+        for (int i = 0; i < currentClientIdentifier.length(); i++) {
+            System.out.print("\b");
+        }
     }
 
     private Thread readMessage(BufferedReader otherClientReader) {
@@ -99,14 +106,11 @@ public class Main {
                     final String message = otherClientReader.readLine();
                     final String currentClientIdentifier = currentClientName + CLIENT_NAME_SEPARATOR;
 
-                    for (int i = 0; i < currentClientIdentifier.length(); i++) {
-                        System.out.print("\b");
-                    }
-
+                    clearCurrentClientIdentifier(currentClientIdentifier);
                     printMessage(message, currentClientIdentifier);
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                System.out.println("\n\nThe server is closed");
             }
         });
     }
